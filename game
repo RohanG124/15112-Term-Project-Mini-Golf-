@@ -6,6 +6,8 @@ friction and random wind speeds + directions change the ball's movements realist
 
 These features are very easily visible by playing the game, no special instruction needed.
 The included help screen explains a bit about what each obstacle does if needed.
+
+This game is built with CS Academy's CMU Graphics package.
 '''
 
 
