@@ -1,0 +1,642 @@
+'''
+The key features are: the way the ball's 
+velocity is reflected between the ball and other objects, 
+and the way the different objects like slopes, bounces, 
+friction and random wind speeds + directions change the ball's movements realistically.
+
+These features are very easily visible by playing the game, no special instruction needed.
+The included help screen explains a bit about what each obstacle does if needed.
+'''
+
+
+from cmu_graphics import *
+import math
+import random
+import copy
+
+def onAppStart(app):
+    app.background = rgb(252, 226, 164)
+    app.width = 700
+    app.height = 500
+    app.ball = Ball(app.width/2, app.height/2, 0, 0)
+    app.friction = 0.175
+    app.PowerLine = False
+    app.PowerLineX = 0
+    app.PowerLineY = 0
+    app.PowerLineColor = 'green'
+    app.stepsPerSecond = 60
+    app.menu = True
+    app.playButton = False
+    app.animBallx = 160
+    app.initialPress = 10
+    
+    app.course1 = Course([[188, 163, 513, 163],#course
+                         [188, 163, 188, 338],
+                         [188, 338, 513, 338],
+                         [513, 163, 513, 338]], [app.width/2 + 125, app.height/2], app.width/2-125, app.height/2)
+                         
+    app.course2 = Course([[240, 50, 340, 50],#course
+                          [340, 50, 340, 150],
+                          [340, 150, 440, 150],
+                          [440, 150,440, 175],
+                          [440, 175, 515, 175],
+                          [515, 175, 515, 285],
+                          [440, 285, 515, 285],
+                          [440, 285, 440, 450],
+                          [240, 450, 440, 450],
+                          [240, 50, 240, 450],
+                          [285, 190, 335, 190],#square2
+                          [285, 190, 285, 240],
+                          [335, 190, 335, 240],
+                          [285, 240, 335, 240],
+                          [235, 345, 360, 345],#bar connected to wall
+                          [360, 345, 360, 360],
+                          [235, 360, 360, 360],
+                          [350, 250, 400, 250],#square1
+                          [350, 250, 350, 300],
+                          [350, 300, 400, 300],
+                          [400, 250, 400, 300]], [475, 225], 270, 400)
+    app.course2.obstacles.append([[360, 345, 440, 390], [0,1]])
+    
+    app.course3 = Course([[140, 130, 140, 200],#course
+                          [60, 200, 140, 200],
+                          [60, 200, 60, 400],
+                          [60, 400, 215, 400],
+                          [215, 300, 215, 400],
+                          [215, 300, 550, 300],
+                          [550, 130, 550, 300],
+                          [140, 130, 550, 130],
+                          [126, 186, 176, 186],#square
+                          [126, 186, 126, 236],
+                          [126, 236, 176, 236],
+                          [176, 186, 176, 236],
+                          [126, 300, 215, 300],#bar on wall
+                          [126, 300, 126, 315],
+                          [126, 315, 215, 315],
+                          [260, 223, 307, 240],#rotated square
+                          [307, 240, 290, 286],
+                          [290, 286, 244, 270],
+                          [244, 270, 260, 223],
+                          [355, 163, 387, 184],#triangle
+                          [387, 184, 355, 199],
+                          [355, 199, 355, 163]], [512, 165], 85, 370)
+    app.course3.obstacles.append([[126, 236, 176, 300], [-1, 0]])
+    app.course3.obstacles.append([436, 241, 20])
+    
+    app.course4 = Course([[150, 250, 150, 165],#course
+                          [150, 165, 223, 107],
+                          [223, 107, 427, 107],
+                          [427, 107, 550, 210],
+                          [550, 210, 550, 439],
+                          [550, 439, 450, 439],
+                          [450, 439, 450, 370],
+                          [450, 370, 300, 370],
+                          [300, 370, 300, 250],
+                          [300, 250, 150, 250],
+                          [270, 150, 280, 140],#cross
+                          [340, 140, 350, 150],
+                          [270, 210, 280, 220],
+                          [340, 220, 350, 210],
+                          [270, 150, 340, 220],
+                          [280, 140, 350, 210],
+                          [350, 150, 280, 220],
+                          [270, 210, 340, 140],
+                          [455, 262, 503, 280],#rotated square
+                          [503, 280, 485, 328],
+                          [485, 328, 438, 310],
+                          [438, 310, 455, 262]], [170,230], 500, 425)
+    app.course4.obstacles.append([456,198, 20])
+    app.course4.obstacles.append([340, 330, 30])
+    app.course4.obstacles.append([[450, 370, 550, 400], [0,-1]])
+    app.course4.obstacles.append([[300, 260, 380, 290], [0, 1]])
+    app.course4.obstacles.append([[380, 290, 410, 370], [-1, 0]])
+    app.course4.obstacles.append([[150, 180, 190, 210], [0, -1]])
+    app.course4.obstacles.append([[190, 210, 220, 250], [1, 0]])
+    
+    app.course5 = Course([[65, 160, 205, 70],#course
+                          [205, 70, 515, 70],
+                          [515, 70, 515, 220],
+                          [515, 220, 635, 220],
+                          [635, 220, 515, 330],
+                          [515, 330, 515, 410],
+                          [515, 410, 365, 410],
+                          [365, 410, 315, 300],
+                          [315, 300, 265, 430],
+                          [265, 430, 65, 430],
+                          [65, 430, 65, 335],
+                          [65, 335, 165, 335],
+                          [165, 335, 165, 230],
+                          [165, 230, 65, 230],
+                          [65, 230, 65, 160],
+                          [140, 150, 190, 150],#square
+                          [190,150, 190, 200],
+                          [190, 200, 140, 200],
+                          [140, 200, 140, 150],
+                          [280, 272, 295, 288],#triangle
+                          [295, 288, 277, 300],
+                          [277, 300, 280, 272],
+                          [159, 319, 195, 356],#top-half bar
+                          [195, 356, 180, 370],
+                          [180, 370, 146, 335],
+                          [206, 393, 220, 379],#bottom-half bar
+                          [220, 379, 267, 426],
+                          [206, 393, 254, 441],
+                          [285, 197, 292, 190],#cross
+                          [292, 190, 327, 225],
+                          [327, 225, 320, 232],
+                          [320, 232, 285, 197],
+                          [320, 190, 327, 197],
+                          [327, 197, 292, 232],
+                          [292, 232, 285, 225],
+                          [285, 225, 320, 190],
+                          [390, 94, 450, 124],#top bar
+                          [450, 124, 445, 134],
+                          [445, 134, 385, 104],
+                          [385, 104, 390, 94]], [495, 90], 78, 414)
+    app.course5.obstacles.append([242, 322, 20])
+    app.course5.obstacles.append([415, 357, 20])
+    app.course5.obstacles.append([560, 250, 10])
+    app.course5.obstacles.append([[325, 330, 515, 380], [0, 1]])
+    app.course5.obstacles.append([[515, 220, 595, 330], [1, 0]])
+    
+    app.course5.obstacles.append([[395, 185, 445, 215], [0, 1]])
+    app.course5.obstacles.append([[395, 265, 445, 295], [0, -1]])
+    app.course5.obstacles.append([[365, 215, 395, 265], [1, 0]])
+    app.course5.obstacles.append([[445, 215, 475, 265], [-1, 0]])
+    
+    app.currentCourse = app.course1
+    reset(app)
+    
+def reset(app):
+    app.totalSteps = 0
+    app.help = False
+    app.win = False
+    app.hits = 0
+    
+    app.wind = False
+    app.windSpeed = random.randint(1, 5)
+    if(app.menu == False):
+        windExists = random.randint(1, 10)
+        if(windExists <= 7):
+            app.wind = True
+        else:
+            app.wind = False
+        app.windSpeed = random.randint(1, 5)
+    app.windAngle = random.randint(0, 360)
+    resetBall(app)
+
+def resetBall(app):
+    app.ball.x = app.currentCourse.startx
+    app.ball.y = app.currentCourse.starty
+    app.ball.vx = 0
+    app.ball.vy = 0
+
+def drawCourse1(app):
+    drawRect(app.width/2, app.height/2, 360, 210, align='center', fill=rgb(200,200,200))
+    drawRect(app.width/2, app.height/2, 325, 175, align='center', fill=rgb(58,176,82))
+    
+def drawCourse2(app):
+    points = [225, 35, 225, 465, 455, 465, 455, 300, 530, 300, 530, 160, 455, 160, 455, 135, 355, 135, 355, 35]
+    drawPolygon(*points, fill=rgb(200,200,200))
+    points = [240, 50, 240, 450, 440, 450, 440, 285, 515, 285, 515, 175, 440, 175, 440, 150, 340, 150, 340, 50]
+    drawPolygon(*points, fill=rgb(58,176,82))
+    
+    #obstacles
+    drawRect(235, 345, 125, 15, fill=rgb(200,200,200))
+    drawRect(app.width/2, app.height/2, 50, 50, fill=rgb(200,200,200))
+    drawRect(285, 190, 50, 50, fill=rgb(200,200,200))
+    
+    #slopes
+    drawRect(360, 345, 80, 45, fill=gradient('lightGreen', rgb(96,179,113), start='top'))
+    drawLine(400, 370, 400, 371, arrowEnd=True, fill=rgb(58,176,82))
+    
+def drawCourse3(app):
+    points = [125, 115, 125, 185, 45, 185, 45, 415, 230, 415, 230, 315, 565, 315, 565, 115]
+    drawPolygon(*points, fill=rgb(200,200,200))
+    points = [140, 130, 140, 200, 60, 200, 60, 400, 215, 400, 215, 300, 550, 300, 550, 130]
+    drawPolygon(*points, fill=rgb(58,176,82))
+    
+    #line obstacles
+    drawRect(126, 186, 50, 50, fill=rgb(200,200,200))
+    drawRect(126, 300, 89, 15, fill=rgb(200,200,200))
+    drawPolygon(260,223, 307,240, 290,286, 244,270, fill=rgb(200,200,200))
+    drawPolygon(355,163, 355,199, 387, 184, fill=rgb(200,200,200))
+    
+    #slopes
+    drawRect(126, 236, 50, 64, fill=gradient('lightGreen', rgb(96,179,113), start='right'))
+    drawLine(147, 268, 146, 268, arrowEnd=True, fill=rgb(58,176,82))
+    
+    #bouncy circles
+    drawCircle(436, 241, 20, fill=rgb(255,210,0))
+    drawLine(416, 241, 455, 241, fill=rgb(220,194,0))
+    drawLine(436, 221, 436, 261, fill=rgb(220,194,0))
+    
+def drawCourse4(app):
+    #course
+    points = [135,265, 135,155, 213,92, 432,92, 565,205, 565,454, 435,454, 
+              435,385, 285,385, 285,265]
+    drawPolygon(*points, fill=rgb(200,200,200))
+    points = [150,250, 150,165, 223,107, 427,107, 550,210, 550,439, 450,439, 
+              450,370, 300,370, 300,250]
+    drawPolygon(*points, fill=rgb(58,176,82))
+    
+    #obstacles
+    drawRect(300, 130, 20, 100, fill=rgb(200,200,200), rotateAngle=45)
+    drawRect(300, 130, 20, 100, fill=rgb(200,200,200), rotateAngle=-45)
+    
+    drawPolygon(455,262, 503,280, 485,328, 438, 310, fill=rgb(200,200,200))
+    
+    #bouncy circles
+    drawCircle(456, 198, 20, fill=rgb(255,210,0))
+    drawLine(436, 198, 476, 198, fill=rgb(220,194,0))
+    drawLine(456, 178, 456, 218, fill=rgb(220,194,0))
+    
+    drawCircle(340, 330, 30, fill=rgb(255,210,0))
+    drawLine(340-30, 330, 340+30, 330, fill=rgb(220,194,0))
+    drawLine(340, 330-30, 340, 330+30, fill=rgb(220,194,0))
+
+    #slopes
+    drawRect(450, 370, 100, 30, fill=gradient('lightGreen', rgb(96,179,113), start='bottom'))
+    drawLine(500, 381, 500, 380, arrowEnd=True, fill=rgb(58,176,82))
+    
+    drawRect(380, 290, 30, 80, fill=gradient('lightGreen', rgb(96,179,113), start='right'))
+    drawLine(387, 330, 386, 330, arrowEnd=True, fill=rgb(58,176,82))
+    
+    drawRect(300, 260, 80, 30, fill=gradient('lightGreen', rgb(96,179,113), start='top'))
+    drawLine(340, 283, 340, 282, arrowStart=True, fill=rgb(58,176,82))
+    
+    drawRect(450, 370, 100, 30, fill=gradient('lightGreen', rgb(96,179,113), start='bottom'))
+    drawLine(500, 381, 500, 380, arrowEnd=True, fill=rgb(58,176,82))
+    
+    drawRect(150, 180, 40, 30, fill=gradient('lightGreen', rgb(96,179,113), start='bottom'))
+    drawLine(170, 189, 170, 188, arrowEnd=True, fill=rgb(58,176,82))
+    
+    drawRect(190, 210, 30, 40, fill=gradient('lightGreen', rgb(96,179,113), start='left'))
+    drawLine(212, 230, 213, 230, arrowEnd=True, fill=rgb(58,176,82))
+    
+
+def drawCourse5(app):
+    #course
+    points = [50,145, 205,55, 530,55, 530,205, 665,205, 530,345, 530,425, 355,425, 
+              315,330, 275,445, 50,445, 50,320, 150,320, 150,245, 50,245]
+    drawPolygon(*points, fill=rgb(200,200,200))
+    points = [65,160, 205,70, 515,70, 515,220, 635,220, 515,330, 515,410, 365,410, 
+              315,300,265,430, 65,430, 65,335, 165,335, 165,230, 65,230]
+    drawPolygon(*points, fill=rgb(58,176,82))
+    
+    #obstacles
+    drawPolygon(159, 319, 195,356, 180,370, 146,335, fill=rgb(200,200,200))
+    drawPolygon(206, 393, 220,379, 267,426, 254,441, fill=rgb(200,200,200))
+    
+    drawRect(140, 150, 50, 50, fill=rgb(200,200,200))
+    
+    drawPolygon(288-3.5,193+3.5, 288+3.5,193-3.5, 323+3.5,228-3.5,
+                323-3.5,228+3.5, fill=rgb(200,200,200))
+    drawPolygon(323-3.5,193-3.5, 323+3.5,193+3.5, 288+3.5,228+3.5, 288-3.5,228-3.5, fill=rgb(200,200,200))
+    
+    drawPolygon(280,272, 277,300, 295,288, fill=rgb(200,200,200))
+    
+    drawPolygon(390,94, 385,104, 445,134, 450,124, fill=rgb(200,200,200))
+    
+    #slopes
+    drawPolygon(515, 220, 515,330, 595,257, 595,220, fill=gradient('lightGreen', rgb(96,179,113), start='left'))
+    drawLine(539, 257, 540, 257, arrowEnd=True, fill=rgb(58,176,82))
+    
+    drawPolygon(327, 330, 515,330, 515,380, 353,380, fill=gradient('lightGreen', rgb(96,179,113), start='top'))
+    drawLine(478, 374, 478, 375, arrowEnd=True, fill=rgb(58,176,82))
+    
+    drawRect(365, 215, 30, 50, fill=gradient('lightGreen', rgb(96,179,113), start='left'))
+    drawLine(384, 241, 385, 241, arrowEnd=True, fill=rgb(58,176,82))
+    
+    drawRect(395, 265, 50, 30, fill=gradient('lightGreen', rgb(96,179,113), start='bottom'))
+    drawLine(420, 275, 420, 274, arrowEnd=True, fill=rgb(58,176,82))
+    
+    drawRect(395, 185, 50, 30, fill=gradient('lightGreen', rgb(96,179,113), start='top'))
+    drawLine(420, 207, 420, 208, arrowEnd=True, fill=rgb(58,176,82))
+    
+    drawRect(445, 215, 30, 50, fill=gradient('lightGreen', rgb(96,179,113), start='right'))
+    drawLine(454, 241, 453, 241, arrowEnd=True, fill=rgb(58,176,82))
+    
+    #bouncy Circles
+    drawCircle(242, 322, 20, fill=rgb(255,210,0))
+    drawLine(222, 322, 262, 322, fill=rgb(220,194,0))
+    drawLine(242, 302, 242, 342, fill=rgb(220,194,0))
+    
+    drawCircle(415, 357, 20, fill=rgb(255,210,0))
+    drawLine(395, 357, 435, 357, fill=rgb(220,194,0))
+    drawLine(415, 337, 415, 377, fill=rgb(220,194,0))
+    
+    drawCircle(560, 250, 10, fill=rgb(255,210,0))
+    drawLine(560, 240, 560, 260, fill=rgb(220,194,0))
+    drawLine(550, 250, 570, 250, fill=rgb(220,194,0))
+    
+def drawFlag(x, y, angle):
+    length = 80
+    angle *= (math.pi/180)
+    x1 = math.cos(-angle)*length+x
+    y1 = math.sin(-angle)*length+y
+    tipX = math.cos(-angle-math.pi/7)*(length-15) + x
+    tipY = math.sin(-angle-math.pi/7)*(length-15) + y
+    x2 = math.cos(-angle) * (length-30) + x
+    y2 = math.sin(-angle) * (length-30) + y
+    drawPolygon(x1, y1, tipX, tipY, x2, y2, fill='red', border='black')
+    drawLine(x, y, x1, y1, fill=rgb(250, 250, 250), lineWidth=7)
+    
+def drawBallAnimation(app):
+    drawRect(app.width/2, 100, 430, 130, align='center', fill=rgb(200,200,200))
+    drawRect(app.width/2, 100, 400, 100, align='center', fill=rgb(58,176,82))
+    drawCircle(520, 100, 10)
+    drawCircle(app.animBallx, 100, 5, fill='white')
+
+def drawCourseSelection(app):
+    drawCircle(20,20, 15, fill='white')
+    drawLabel('1', 20, 20, size = 25,font='cursive', fill=rgb(63,68,48))
+    drawCircle(20,55, 15, fill='white')
+    drawLabel('2', 20, 55, size = 25,font='cursive', fill=rgb(63,68,48))
+    drawCircle(20,90, 15, fill='white')
+    drawLabel('3', 20, 90, size = 25,font='cursive', fill=rgb(63,68,48))
+    drawCircle(20,125, 15, fill='white')
+    drawLabel('4', 20, 125, size = 25,font='cursive', fill=rgb(63,68,48))
+    drawCircle(20,160, 15, fill='white')
+    drawLabel('5', 20, 160, size = 25,font='cursive', fill=rgb(63,68,48))
+
+def redrawAll(app):
+    if(app.menu):
+        drawLabel("Mini Golf!!!", app.width/2, app.height/2, font='cursive', size=100, fill=rgb(63,68,48))
+        angle = 90+10*math.sin(app.totalSteps/25)
+        drawFlag(57, app.height/2+40, angle)
+        drawFlag(643, app.height/2+40, angle)
+        if(app.playButton):
+            drawCircle(305, 383, 20, fill=rgb(253,240,210), border=rgb(63,68,48), borderWidth=4)
+            drawCircle(395, 383, 20, fill=rgb(253,240,210), border=rgb(63,68,48), borderWidth=4)
+            drawCircle(305, 418, 20, fill=rgb(253,240,210), border=rgb(63,68,48), borderWidth=4)
+            drawCircle(395, 418, 20, fill=rgb(253,240,210), border=rgb(63,68,48), borderWidth=4)
+            drawPolygon(305,383, 305,363, 395,363, 395,383, 415,383, 415,418, 
+                        395,418, 395,438, 305,438, 305,418, 285,418, 285,383, fill=rgb(253,240,210))
+            drawLine(305,363+2, 395,363+2, fill=rgb(63,68,48), lineWidth=4)
+            drawLine(285+2,383, 285+2,418, fill=rgb(63,68,48), lineWidth=4)
+            drawLine(415-2,383, 415-2,418, fill=rgb(63,68,48), lineWidth=4)
+            drawLine(305,438-2, 395,438-2, fill=rgb(63,68,48), lineWidth=4)
+            drawLabel("Play", app.width/2, 397, size=35, font='cursive')
+        return
+    if(app.playButton):
+        drawBallAnimation(app)
+        drawLabel("Choose a Level:", app.width/2, 230, size=100, font='cursive', fill=rgb(63,68,48))
+        for i in range(1, 6):
+            drawCircle(i*app.width/6, 390, 50, fill='white')
+            drawLabel(f"{i}",i*app.width/6, 390, size = 30,font='cursive', fill=rgb(63,68,48))
+        return
+    
+    drawCourseSelection(app)
+    if(app.currentCourse == app.course1):
+        drawCourse1(app)
+    if(app.currentCourse == app.course2):
+        drawCourse2(app)
+    if(app.currentCourse == app.course3):
+        drawCourse3(app)
+    if(app.currentCourse == app.course4):
+        drawCourse4(app)
+    if(app.currentCourse == app.course5):
+        drawCourse5(app)
+
+    #boundary lines
+    for i in range(len(app.currentCourse.lines)):
+        drawLine(app.currentCourse.lines[i][0], app.currentCourse.lines[i][1], app.currentCourse.lines[i][2], app.currentCourse.lines[i][3], fill=rgb(200,200,200), lineWidth=2)
+    #the course hole
+    drawCircle(app.currentCourse.hole[0], app.currentCourse.hole[1], 10, fill='black')
+    
+    if(app.wind):
+        drawLabel(f"{app.windSpeed}mph winds", 635, 460, size = 30, font='cursive', fill=rgb(63,68,48))
+        angle = math.radians(app.windAngle)
+        x = 635+30*math.cos(angle)
+        y = 420+30*math.sin(angle)
+        drawLine(635, 420, x, y, arrowEnd=True)
+    else:
+        drawLabel(f"No wind", 635, 460, size=30, font='cursive', fill=rgb(63,68,48))
+    
+    if(app.win == False):
+        # golf ball
+        drawCircle(app.ball.x, app.ball.y, 5, fill='white') 
+        if(app.PowerLine):
+            drawLine(app.ball.x, app.ball.y, app.PowerLineX, app.PowerLineY, fill=app.PowerLineColor, lineWidth = 10, dashes = True)
+        drawLabel(f"Hits: {app.hits}", 50, 20, align='left',size=30, font='cursive', fill=rgb(63,68,48))
+    else:
+        drawRect(0, 0, app.width, app.height, fill='black', opacity=70)
+        if(app.hits < 5):
+            drawLabel(f"{app.hits} hits, Excellent!!!", app.width/2, app.height/2, size=50, fill='white', font='cursive')
+        if(app.hits >= 5 and app.hits < 8):
+            drawLabel(f"{app.hits} hits, Not Bad!!", app.width/2, app.height/2, size=50, fill='white', font='cursive')
+        if(app.hits >= 8):
+            drawLabel(f"{app.hits} hits, Could Be Better!", app.width/2, app.height/2, size=50, fill='white', font='cursive')
+        drawLabel("Pick another level to play in the left", app.width/2, app.height/2+50, size=30, fill='white', font='cursive')
+        drawCourseSelection(app)
+    
+    if(app.help):
+        drawRect(0, 0, app.width, app.height, fill='black', opacity=70)
+        drawLabel("Play", 650, 25, size=40, font='cursive', fill='white')
+        drawLabel("To shoot, click on the white ball, drag, and release.", app.width/2, app.height/6, size = 40, fill='white', font='cursive')
+        drawLabel("The ball will bounce off all gray obstacles and borders.", app.width/2,2*app.height/6, size = 40, fill='white', font='cursive')
+        drawLabel("If the ball touches a yellow bounce, it will go flying!", app.width/2,3*app.height/6, size = 40, fill='white', font='cursive')
+        drawLabel("Finally, the slopes marked by the arrows will make",app.width/2,4*app.height/6, size = 40, fill='white', font='cursive')
+        drawLabel("your ball slide in the noted direction.", app.width/2,5*app.height/6, fill='white', size = 40, font='cursive')
+    else:
+        drawLabel("Help", 650, 25, size=40, font='cursive', fill=rgb(63,68,48))
+    
+def onMousePress(app,mouseX, mouseY):
+    if(app.menu):
+        if(mouseX >= 300 and mouseX <= 400 and mouseY >= 363 and mouseY <= 438):
+            app.menu = False
+        return
+    
+    if(app.playButton):#course selection on start screen
+        if(dist(mouseX, mouseY, 117, 390) <= 50):
+            app.playButton = False
+            app.currentCourse = app.course1
+        if(dist(mouseX, mouseY, 233, 390) <= 50):
+            app.playButton = False
+            app.currentCourse = app.course2
+        if(dist(mouseX, mouseY, 350, 390) <= 50):
+            app.playButton = False
+            app.currentCourse = app.course3
+        if(dist(mouseX, mouseY, 467, 390) <= 50):
+            app.playButton = False
+            app.currentCourse = app.course4
+        if(dist(mouseX, mouseY, 583, 390) <= 50):
+            app.playButton = False
+            app.currentCourse = app.course5
+        reset(app)
+        return
+    
+    if(mouseX >= 602 and mouseY <= 65):
+        app.help = not app.help
+    
+    if(app.help):
+        return
+    
+    app.initialPress = dist(mouseX, mouseY, app.ball.x, app.ball.y)
+
+    #course selection on game screens
+    if(dist(mouseX, mouseY, 20, 20) <= 15):
+        app.currentCourse = app.course1
+        reset(app)
+    if(dist(mouseX, mouseY, 20, 55) <= 15):
+        app.currentCourse = app.course2
+        reset(app)
+    if(dist(mouseX, mouseY, 20, 90) <= 15):
+        app.currentCourse = app.course3
+        reset(app)
+    if(dist(mouseX, mouseY, 20, 125) <= 15):
+        app.currentCourse = app.course4
+        reset(app)
+    if(dist(mouseX, mouseY, 20, 160) <= 15):
+        app.currentCourse = app.course5
+        reset(app)
+    
+def onMouseDrag(app, mouseX, mouseY):
+    if(app.menu or app.playButton or app.help or app.win):
+        return
+    if(app.initialPress <= 5):
+        power = dist(mouseX, mouseY, app.ball.x, app.ball.y)
+        app.PowerLine = True
+        app.PowerLineX = mouseX
+        app.PowerLineY = mouseY
+        if(power <= 50):
+            app.PowerLineColor = 'green'
+        elif(power <= 100):
+            app.PowerLineColor = 'yellow'
+        else:
+            app.PowerLineColor = 'red'
+
+def onMouseRelease(app, mouseX, mouseY):
+    if(app.PowerLine == True):
+        app.hits += 1
+        app.ball.vx = (app.ball.x - mouseX) * 0.1 #same vector, scaled down to fit 60 fps
+        app.ball.vy = (app.ball.y - mouseY) * 0.1
+        power = (app.ball.vx**2 + app.ball.vy**2)**0.5
+        while(power > 15):
+            scaleDown = power - 0.5
+            app.ball.vx *= scaleDown/power
+            app.ball.vy *= scaleDown/power
+            power = scaleDown
+    app.PowerLine = False
+
+def onStep(app):
+    if(app.menu):
+        if app.totalSteps/60 >= 3:
+            app.playButton = True
+        app.totalSteps += 1
+        return
+    if(app.playButton):
+        app.totalSteps += 1
+        if(app.totalSteps % 2 == 0):
+            app.animBallx += 5
+        if(app.animBallx >= 520):
+            app.animBallx=160
+        return
+    
+    #split changing for account for tunneling
+    for i in range(10):
+        for wall in app.currentCourse.lines:
+            reflectWalls(app, wall)
+        if(dist(app.ball.x, app.ball.y, app.currentCourse.hole[0], app.currentCourse.hole[1]) <= 7.5):
+            app.win = True
+        app.ball.x += app.ball.vx/10
+        app.ball.y += app.ball.vy/10
+        applyObstacles(app)
+    
+    #wind application
+    if(app.wind):
+        angle = math.radians(app.windAngle)
+        windX = 0.02*app.windSpeed * math.cos(angle)
+        windY = 0.02*app.windSpeed * math.sin(angle)
+        app.ball.vx += windX
+        app.ball.vy += windY
+    
+    #This section of code is from ChatGPT. This code is fully created by AI
+    speed = (app.ball.vx**2 + app.ball.vy**2)**0.5
+    if(speed > 0):
+        nextSpeed = speed - app.friction
+        if(nextSpeed < 0):
+            app.ball.vx = 0
+            app.ball.vy = 0
+        else:
+            app.ball.vx *= (nextSpeed/speed)
+            app.ball.vy *= (nextSpeed/speed)
+    #end of AI section
+    
+def applyObstacles(app):
+    for obstacle in app.currentCourse.obstacles:
+        #bouncy circle
+        if(type(obstacle[0]) == int):
+            if(dist(app.ball.x, app.ball.y, obstacle[0], obstacle[1]) <= 5 + obstacle[2]):
+                dx = app.ball.x - obstacle[0]
+                dy = app.ball.y - obstacle[1]
+                centerX = app.ball.x
+                centerY = app.ball.y
+                nx = -dy
+                ny = dx
+                wall = [centerX - nx, centerY - ny, centerX + nx, centerY + ny]
+                reflectWalls(app, wall)
+                magnitude = (app.ball.vx**2 + app.ball.vy**2)**0.5
+                if(magnitude != 0):
+                    app.ball.vx *= (10/magnitude)
+                    app.ball.vy *= (10/magnitude)
+        #slope
+        else:
+            if(app.ball.x >= obstacle[0][0] and app.ball.x <= obstacle[0][2] and app.ball.y >= obstacle[0][1] and app.ball.y <= obstacle[0][3]):
+                app.ball.vx += 0.0175 * obstacle[1][0]
+                app.ball.vy += 0.0175 * obstacle[1][1]
+
+def reflectWalls(app, wall):
+    x1, y1, x2, y2 = wall
+    dx = x2 - x1
+    dy = y2 - y1
+    length = (dx**2 + dy**2)**0.5
+    #for figuring out closest point of ball-to-line
+    projection = ((app.ball.x - x1)*dx + (app.ball.y - y1)*dy) / (length)**2
+    projection = max(0, min(1, projection))
+    xOnLine = x1 + projection*dx
+    yOnLine = y1 + projection*dy
+    distance = dist(app.ball.x, app.ball.y, xOnLine, yOnLine)
+    if(distance <= 5):
+        #reflection formula: r= v - 2(v dot n)n
+        nx = -dy
+        ny = dx
+        magnitude = (nx**2 + ny**2)**0.5
+        nx /= magnitude
+        ny /= magnitude
+        # Start of AI section, from ChatGPT. This section is fully created by AI
+        if(app.ball.vx*nx + app.ball.vy*ny > 0):
+            nx *= -1
+            ny *= -1
+        # End of AI section
+        dot = app.ball.vx*nx + app.ball.vy*ny
+        app.ball.vx -= 2 * dot * nx
+        app.ball.vy -= 2 * dot * ny
+        app.ball.x += nx*4
+        app.ball.y += ny*4
+
+def dist(x1, y1, x2, y2):
+    return ((x1-x2)**2 + (y1-y2)**2)**0.5
+
+class Ball:
+    def __init__(self, x, y, vx, vy):
+        self.x = x
+        self.y = y
+        self.vx = vx
+        self.vy = vy
+
+class Course:
+    def __init__(self, lines, hole, startx, starty):
+        self.lines = copy.deepcopy(lines)
+        self.hole = copy.copy(hole)
+        self.startx = startx
+        self.starty = starty
+        self.obstacles = []
+
+
+def main():
+    runApp()
+    
+main()
+
